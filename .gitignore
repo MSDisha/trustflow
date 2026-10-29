@@ -1,0 +1,24 @@
+# Python environment
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Credentials and secrets
+.env
+.env.*
+!.env.example
+profiles.yml
+
+# Local data
+data/bronze/
+data/metadata/
+
+# Databricks and dbt generated files
+dbt/**/target/
+dbt/**/logs/
+dbt/**/dbt_packages/
+
+# macOS and temporary files
+.DS_Store
+~$*
