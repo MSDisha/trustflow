@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: nyc_311_silver
+    database: workspace
+    schema: trustflow_dev_silver
+    tables:
+      - name: nyc_311_requests
