@@ -2,48 +2,61 @@
 import json
 from pathlib import Path
 
-# Find downloaded NYC 311 JSON files
-bronze_path = Path("data/bronze/nyc_311")
-files = sorted(bronze_path.glob("*.json"))
+BRONZE_DIR = Path("data/bronze/nyc_311/historical")
+METADATA_DIR = Path("data/metadata/nyc_311/historical")
 
-if not files:
-    raise FileNotFoundError("No NYC 311 JSON files found.")
+# Find only completed day directories.
+completed_days = []
 
-# Select the latest file
-latest_file = files[-1]
+for day_dir in BRONZE_DIR.iterdir():
+    if not day_dir.is_dir():
+        continue
 
-# Read JSON records
-with open(latest_file, "r", encoding="utf-8") as file:
-    records = json.load(file)
+    metadata_file = METADATA_DIR / f"{day_dir.name}.json"
 
-print("File:", latest_file.name)
+    if not metadata_file.exists():
+        continue
+
+    metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
+
+    if metadata.get("status") == "SUCCESS":
+        completed_days.append(day_dir)
+
+if not completed_days:
+    raise FileNotFoundError("No completed NYC 311 Bronze batches found.")
+
+# Choose the latest completed day.
+latest_day = sorted(completed_days)[-1]
+files = sorted(latest_day.glob("page_*.json"))
+
+records = []
+
+for file_path in files:
+    with file_path.open("r", encoding="utf-8") as file:
+        page_records = json.load(file)
+        records.extend(page_records)
+
+print("Completed day:", latest_day.name)
+print("Page files:", len(files))
 print("Total records:", len(records))
 
 if records:
-    print("\nAvailable columns:")
-    for column in records[0].keys():
-        print("-", column)
-
-    # Check duplicate request IDs in this batch
     ids = [row.get("unique_key") for row in records]
-    non_null_ids = [id_value for id_value in ids if id_value is not None]
 
-    print("\nMissing unique keys:", len(ids) - len(non_null_ids))
-    print("Duplicate unique keys:", len(non_null_ids) - len(set(non_null_ids)))
+    print("Available columns:", list(records[0].keys()))
+    print("Missing IDs:", sum(not key for key in ids))
+    print("Duplicate IDs:", len(ids) - len(set(ids)))
 
     print("\nSample record:")
     print(json.dumps(records[0], indent=2))
-    
-    # Inspect timestamps for incremental ingestion
-    print("\n--- Timestamp Inspection ---")
 
+    print("\nTimestamp inspection:")
     for record in records[:5]:
         print({
             "unique_key": record.get("unique_key"),
             "created_date": record.get("created_date"),
-            "resolution_action_updated_date": record.get(
-                "resolution_action_updated_date"
-            ),
+            "resolution_action_updated_date":
+                record.get("resolution_action_updated_date"),
             "closed_date": record.get("closed_date"),
             "status": record.get("status")
         })

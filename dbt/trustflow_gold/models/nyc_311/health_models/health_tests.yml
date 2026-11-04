@@ -1,0 +1,41 @@
+
+version: 2
+
+models:
+  - name: nyc_311_batch_health
+    description: "Unified NYC 311 historical and refresh batch audit."
+    columns:
+      - name: batch_id
+        data_tests:
+          - not_null
+          - unique
+      - name: batch_type
+        data_tests:
+          - not_null
+      - name: status
+        data_tests:
+          - not_null
+
+  - name: nyc_311_quality_health
+    description: "Record validation and reconciliation by batch."
+    columns:
+      - name: batch_id
+        data_tests:
+          - not_null
+          - unique
+      - name: reconciliation_status
+        data_tests:
+          - not_null
+
+  - name: nyc_311_freshness_health
+    description: "Latest NYC 311 refresh freshness evaluation."
+    columns:
+      - name: evaluated_at
+        data_tests:
+          - not_null
+      - name: freshness_threshold_hours
+        data_tests:
+          - not_null
+      - name: freshness_status
+        data_tests:
+          - not_null

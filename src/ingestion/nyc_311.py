@@ -4,6 +4,7 @@ import json
 import logging
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -142,6 +143,21 @@ def ingest_day(session, day):
 
     try:
         expected = count_records(session, where)
+        # No data available for this day yet.
+        # Keep the day pending so a later run can retry it.
+        if expected == 0:
+            metadata["status"] = "PENDING_SOURCE"
+            metadata["expected_records"] = 0
+
+            logger.warning(
+                "%s: No records available. "
+                "Marked PENDING_SOURCE for a future retry.",
+                day_name,
+            )
+
+            # The directory is empty because no pages were downloaded.
+            temp_dir.rmdir()
+            return
 
         metadata["expected_records"] = expected
 
@@ -273,37 +289,77 @@ def ingest_day(session, day):
         save_json(metadata_path, metadata)
 
 
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="NYC 311 historical Bronze ingestion"
+        description="TrustFlow NYC 311 Bronze ingestion"
     )
 
     parser.add_argument(
         "--start-date",
-        required=True,
         type=date.fromisoformat,
+        help="Historical start date (inclusive)"
     )
 
     parser.add_argument(
         "--end-date",
-        required=True,
         type=date.fromisoformat,
-        help="Exclusive end date",
+        help="Historical end date (exclusive)"
+    )
+
+    parser.add_argument(
+        "--lookback-days",
+        type=int,
+        default=14,
+        help="Days to check automatically (default: 14)"
     )
 
     args = parser.parse_args()
 
-    if args.start_date >= args.end_date:
+    if (args.start_date is None) != (args.end_date is None):
         parser.error(
-            "--end-date must be later than --start-date"
+            "Provide both historical dates or neither"
         )
 
-    with create_session() as session:
-        day = args.start_date
+    if args.start_date is not None:
+        # Historical backfill mode.
+        start_date = args.start_date
+        end_date = args.end_date
 
-        while day < args.end_date:
+    else:
+        # Automatic mode: check the previous 14 NYC days.
+        today_nyc = datetime.now(
+            ZoneInfo("America/New_York")
+        ).date()
+
+        if args.lookback_days < 1:
+            parser.error("--lookback-days must be positive")
+
+        start_date = today_nyc - timedelta(
+            days=args.lookback_days
+        )
+        end_date = today_nyc
+
+    if start_date >= end_date:
+        parser.error(
+            "End date must be later than start date"
+        )
+
+    logger.info(
+        "Checking NYC 311 dates from %s to %s (exclusive)",
+        start_date,
+        end_date,
+    )
+
+    with create_session() as session:
+        day = start_date
+
+        while day < end_date:
             ingest_day(session, day)
             day += timedelta(days=1)
+
+    logger.info("NYC 311 ingestion run completed")
 
 
 if __name__ == "__main__":

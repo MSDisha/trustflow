@@ -1,8 +1,16 @@
+
 version: 2
 
 sources:
   - name: nyc_311_silver
     database: workspace
-    schema: trustflow_dev_silver
+    schema: trustflow_silver
     tables:
-      - name: nyc_311_requests
+      - name: nyc_311_requests_v2
+
+  - name: nyc_311_quality
+    database: workspace
+    schema: trustflow_quality
+    tables:
+      - name: nyc_311_batch_audit_v2
+      - name: nyc_311_refresh_audit_v2

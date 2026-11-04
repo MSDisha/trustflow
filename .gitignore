@@ -1,16 +1,21 @@
-# Python environment
+# Python virtual environment and cache
 .venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Credentials and secrets
 .env
 .env.*
 !.env.example
 profiles.yml
+.databrickscfg
+*.pem
+*.key
 
-# Local data
+# Local Bronze data and metadata
 data/bronze/
 data/metadata/
 
@@ -18,7 +23,9 @@ data/metadata/
 dbt/**/target/
 dbt/**/logs/
 dbt/**/dbt_packages/
+.databricks/
 
 # macOS and temporary files
 .DS_Store
 ~$*
+*.swp

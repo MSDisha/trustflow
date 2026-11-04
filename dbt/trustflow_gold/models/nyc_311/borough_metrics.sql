@@ -1,17 +1,41 @@
 
 {{ config(materialized='table') }}
 
+-- TRUSTFLOW GOLD — NYC 311 Borough Metrics
+-- One row per borough.
+-- Summarizes complaint volume and current status.
+
+WITH cleaned_requests AS (
+    SELECT
+        COALESCE(
+            NULLIF(UPPER(TRIM(borough)), ''),
+            'UNKNOWN'
+        ) AS borough,
+        LOWER(TRIM(status)) AS request_status
+    FROM {{ source('nyc_311_silver', 'nyc_311_requests_v2') }}
+)
+
 SELECT
     borough,
     COUNT(*) AS total_requests,
-    SUM(CASE WHEN LOWER(status) = 'open' THEN 1 ELSE 0 END) AS open_requests,
-    SUM(CASE WHEN LOWER(status) = 'closed' THEN 1 ELSE 0 END) AS closed_requests,
+
+    SUM(
+        CASE WHEN request_status = 'open'
+        THEN 1 ELSE 0 END
+    ) AS open_requests,
+
+    SUM(
+        CASE WHEN request_status = 'closed'
+        THEN 1 ELSE 0 END
+    ) AS closed_requests,
+
     SUM(
         CASE
-            WHEN status IS NULL
-              OR LOWER(status) NOT IN ('open', 'closed')
+            WHEN request_status IS NULL
+              OR request_status NOT IN ('open', 'closed')
             THEN 1 ELSE 0
         END
     ) AS other_status_requests
-FROM {{ source('nyc_311_silver', 'nyc_311_requests') }}
+
+FROM cleaned_requests
 GROUP BY borough
